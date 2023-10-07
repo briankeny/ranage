@@ -1,2 +1,2 @@
 # ranage
-A random names and profile generator written in python
+A random names and customizable user profile generator in python. 
