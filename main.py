@@ -5,6 +5,7 @@ import time
 import colorama
 import random
 import user as fakeUser
+import customuser as customeUser
 
 # coloring
 def color(color=None):
@@ -30,10 +31,10 @@ def art():
         """ %s
                _ _ _                  _           _ _ _ 
               |  -  \       _   | \  | |     _   | ---_|
-              | | |  |    _| |  |  \ | |   _| |  ||  __
+              | | |  |    _| |  |  \ | |   _| |  ||  __   ____
               | |- |    / _  |  | \ \| | / _  |  || |--| / _  \   %s
               | |  \ \  ||_| \  | |  | | ||_| \  | \_ || | |_||   %s
-              |_|   \_\ \__ /\\  |_|  | | \__ /\\  \ __ | \_\__    %s                                     
+              |_|   \_\ \__ /\\  |_|  | | \__/\\    \ __ |  \_\__ %s                                     
        
         
           %s #Fake User Profiles and Names Generator
@@ -44,7 +45,7 @@ def art():
 # error messaging
 def error_Handler(errmsg):
     print(f"\t Usage: python {sys.argv[0]} -h for help\n")
-    print("%s\t [?] Error: %s %s\n" % (R, errmsg, W))
+    print("\t [?] Error: %s \n" % (errmsg))
     sys.exit()
 
 
@@ -75,6 +76,7 @@ def argument_handler():
     parser.add_argument(
         "-n",
         "--number",
+        type=int,
         default=100,
         required=False,
         help="Specify The Number of Names You Want To generate --n 20  or --number 200",
@@ -91,10 +93,10 @@ def argument_handler():
     parser.add_argument(
         "-p",
         "--profile",
-        default=True,
-        type=bool,
+        default='true',
+        type=str,
         required=False,
-        help="Enable Profile Generator to include a fake user profile ie . -p yes or --profile off",
+        help="Enable Profile Generator to generate a fake user profile ie . -p true or --profile false or -p off or -p on",
     )
     parser.add_argument(
         "-c",
@@ -109,7 +111,16 @@ def argument_handler():
         "-i",
         "--input",
         required=False,
-        help='Pass in an Input File Name That Already contains the names using the format in names.py ie: -i custnamefiles.json or --i abc.txt ',
+        help='Use an Optional Input File That Contains your own list of names using the format in names.py ie: -i custnamefiles.json or --i abc.txt ',
+    )
+    # Ignore this. Just my own Extra feature
+    parser.add_argument(
+        "-sq",
+        "--sql",
+        type=str,
+        default='false',
+        required=False,
+        help='Generate SQL Insert Statement For Custom User Specified in custom.py file in the main programs directory see custom.py to learn more  : -sq true or --sql on ',
     )
     parser.error = error_Handler
     return parser.parse_args()
@@ -118,7 +129,7 @@ def argument_handler():
 class Generator:
     def __init__(self,profile=False,
                  number=100,verbose=False,save=False,gender="",file_name="names.txt",
-              male_first_names=[],male_surnames=[],female_first_names=[],female_surnames=[]):
+              male_first_names=[],male_surnames=[],female_first_names=[],female_surnames=[],sql=False):
         self.number = number
         self.time = time.time()
         self.verbose = verbose
@@ -131,6 +142,7 @@ class Generator:
         self.female_surnames= female_surnames
         self.final_list = []
         self.profile = profile
+        self.sql = sql
 
     def nameGenerator(self):
 
@@ -144,7 +156,10 @@ class Generator:
                 last_name = random.choice(self.male_surnames) 
                 
                 if self.profile:
-                    user =  fakeUser.userProfile(first_name,last_name)
+                    if self.sql:
+                        user = customeUser.user(first_name,last_name,'male')
+                    else:
+                        user =  fakeUser.userProfile(first_name,last_name)
                     male_names.append(user)
                     if self.verbose:
                         print(f"{user}")    
@@ -165,8 +180,11 @@ class Generator:
                 first_name = random.choice(self.female_first_names)
                 last_name = random.choice(self.female_surnames)
         
-                if self.profile:
-                    user =  fakeUser.userProfile(first_name,last_name)
+                if self.profile: 
+                    if self.sql:
+                        user = customeUser.user(first_name,last_name,'female')
+                    else:
+                        user =  fakeUser.userProfile(first_name,last_name)
                     female_names.append(user)
                     if self.verbose:
                         print(f"{user}")    
@@ -186,12 +204,19 @@ class Generator:
     def saveResults(self):
         if self.save:
             if self.verbose == True:
-                print("%s\n\t [-] Saving Generated names to file %s \n" % (W,self.file_name))
-
+                print("%s\n\t [-] Saving Generated Names/Users to file %s \n" % (W,self.file_name))
+  
             with open(str(self.file_name), "wt") as f:
+                if self.sql:
+                    f.write("INSERT INTO  authentication_employee (public_service_no,account_type,mobile_number,date_of_birth,date_of_hire,department_id,designation_id,employment_type,password,gender,role,work_station,home_address,first_name,last_name,email,is_active,is_staff,is_superuser)  VALUES")
                 for name in self.final_list:
-                    f.write("\n%s" % name)
-
+                    name = f"{name}"
+                    f.write("\n%s" %name)
+                    if self.sql:
+                        f.write(',')
+                    
+                if self.sql:
+                    f.write(';')
 
 def main():
     args = argument_handler()
@@ -203,7 +228,19 @@ def main():
     profile = args.profile
     clr = args.color
     input_file = args.input
+    sql = args.sql
+
+    if str(profile).lower().startswith('on') or str(profile).lower().startswith('t'):
+        profile = True
+    else:
+        profile = False
+
     
+    if str(sql).lower().startswith('on') or str(sql).lower().startswith('t'):
+        sql = True
+    else:
+        sql = False
+
     # For coloring
     if sys.platform.startswith("win"):
         colorama.init()
@@ -212,12 +249,12 @@ def main():
     from names import male_first_names,male_surnames,female_first_names,female_surnames
     action = Generator(profile=profile,number=number,verbose=verbose,save=save,gender=gender,file_name=file_name,
               male_first_names=male_first_names,male_surnames=male_surnames,female_first_names=female_first_names
-              ,female_surnames=female_surnames)
+              ,female_surnames=female_surnames, sql=sql)
     
     action.nameGenerator()
     if save:
         action.saveResults()
-    print('%s\n\t [!] Process Completed Exiting...'%(W))
+    print('%s\n\t [!] Process Completed With Exiting Status Ok!...'%(W))
 
 if __name__ == "__main__":
     if sys.platform.startswith("win"):
